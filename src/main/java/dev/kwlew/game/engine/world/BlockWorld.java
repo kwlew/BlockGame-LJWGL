@@ -1,121 +1,58 @@
 package dev.kwlew.game.engine.world;
 
-import org.joml.Vector3f;
+import dev.kwlew.game.engine.world.block.BlockId;
+import dev.kwlew.game.engine.world.chunk.Chunk;
+import dev.kwlew.game.engine.world.chunk.ChunkPos;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class BlockWorld {
 
-    private static final float EPSILON = 0.0001f;
-    private static final int FLOOR_Y = 0;
-    private static final int SIZE = 32;
+    private final Map<ChunkPos, Chunk> chunks = new HashMap<>();
 
-    private final int minX = -SIZE / 2;
-    private final int minZ = -SIZE / 2;
-    private final int maxXExclusive = minX + SIZE;
-    private final int maxZExclusive = minZ + SIZE;
+    public short getBlock(int wx, int wy, int wz) {
+        ChunkPos chunkPos = toChunkPos(wx, wy, wz);
+        Chunk chunk = chunks.get(chunkPos);
 
-    public boolean isSolid(int x, int y, int z) {
-        return y == FLOOR_Y
-                && x >= minX && x < maxXExclusive
-                && z >= minZ && z < maxZExclusive;
+        if (chunk == null) return BlockId.AIR.id();
+
+        int lx = Math.floorMod(wx, Chunk.SIZE);
+        int ly = Math.floorMod(wy, Chunk.SIZE);
+        int lz = Math.floorMod(wz, Chunk.SIZE);
+        return chunk.get(lx, ly, lz);
     }
 
-    public boolean collidesWithPlayerAabb(float centerX, float feetY, float centerZ, float radius, float height) {
-        float minXf = centerX - radius;
-        float maxXf = centerX + radius;
-        float minYf = feetY;
-        float maxYf = feetY + height;
-        float minZf = centerZ - radius;
-        float maxZf = centerZ + radius;
+    public void setBlock(int wx, int wy, int wz, short blockId) {
+        ChunkPos chunkPos = toChunkPos(wx, wy, wz);
+        Chunk chunk = chunks.computeIfAbsent(chunkPos, k -> new Chunk());
 
-        int minXi = (int) Math.floor(minXf);
-        int maxXi = (int) Math.floor(maxXf - EPSILON);
-        int minYi = (int) Math.floor(minYf);
-        int maxYi = (int) Math.floor(maxYf - EPSILON);
-        int minZi = (int) Math.floor(minZf);
-        int maxZi = (int) Math.floor(maxZf - EPSILON);
+        int lx = Math.floorMod(wx, Chunk.SIZE);
+        int ly = Math.floorMod(wy, Chunk.SIZE);
+        int lz = Math.floorMod(wz, Chunk.SIZE);
+        chunk.set(lx, ly, lz, blockId);
+    }
 
-        for (int x = minXi; x <= maxXi; x++) {
-            for (int y = minYi; y <= maxYi; y++) {
-                for (int z = minZi; z <= maxZi; z++) {
-                    if (isSolid(x, y, z)) {
-                        return true;
-                    }
-                }
-            }
+    public void forEachChunk(ChunkConsumer consumer) {
+        for (Map.Entry<ChunkPos, Chunk> entry : chunks.entrySet()) {
+            consumer.accept(entry.getKey(), entry.getValue());
         }
-
-        return false;
     }
 
-    public float findGroundHeight(float centerX, float centerZ, float radius, float previousFeetY) {
-        int minXi = (int) Math.floor(centerX - radius);
-        int maxXi = (int) Math.floor(centerX + radius - EPSILON);
-        int minZi = (int) Math.floor(centerZ - radius);
-        int maxZi = (int) Math.floor(centerZ + radius - EPSILON);
-
-        float highestGround = Float.NEGATIVE_INFINITY;
-        for (int x = minXi; x <= maxXi; x++) {
-            for (int z = minZi; z <= maxZi; z++) {
-                if (!isSolid(x, FLOOR_Y, z)) {
-                    continue;
-                }
-
-                float topY = FLOOR_Y + 1.0f;
-                if (topY <= previousFeetY + 0.25f) {
-                    highestGround = topY;
-                }
-            }
-        }
-
-        return highestGround == Float.NEGATIVE_INFINITY ? Float.NaN : highestGround;
+    public Chunk getChunk(int chunkX, int chunkY, int chunkZ) {
+        return chunks.get(new ChunkPos(chunkX, chunkY, chunkZ));
     }
 
-    public BlockHit raycast(Vector3f origin, Vector3f direction, float maxDistance) {
-        if (direction.lengthSquared() == 0.0f) {
-            return null;
-        }
-
-        Vector3f dir = new Vector3f(direction).normalize();
-        float stepSize = 0.05f;
-        Vector3f sample = new Vector3f(origin);
-
-        int lastX = Integer.MIN_VALUE;
-        int lastY = Integer.MIN_VALUE;
-        int lastZ = Integer.MIN_VALUE;
-
-        for (float traveled = 0.0f; traveled <= maxDistance; traveled += stepSize) {
-            int bx = (int) Math.floor(sample.x);
-            int by = (int) Math.floor(sample.y);
-            int bz = (int) Math.floor(sample.z);
-
-            if (bx != lastX || by != lastY || bz != lastZ) {
-                if (isSolid(bx, by, bz)) {
-                    return new BlockHit(bx, by, bz);
-                }
-                lastX = bx;
-                lastY = by;
-                lastZ = bz;
-            }
-
-            sample.fma(stepSize, dir);
-        }
-
-        return null;
+    private ChunkPos toChunkPos(int wx, int wy, int wz) {
+        return new ChunkPos(
+                Math.floorDiv(wx, Chunk.SIZE),
+                Math.floorDiv(wy, Chunk.SIZE),
+                Math.floorDiv(wz, Chunk.SIZE)
+        );
     }
 
-    public int getMinX() {
-        return minX;
-    }
-
-    public int getMaxXExclusive() {
-        return maxXExclusive;
-    }
-
-    public int getMinZ() {
-        return minZ;
-    }
-
-    public int getMaxZExclusive() {
-        return maxZExclusive;
+    @FunctionalInterface
+    public interface ChunkConsumer {
+        void accept(ChunkPos chunkPos, Chunk chunk);
     }
 }

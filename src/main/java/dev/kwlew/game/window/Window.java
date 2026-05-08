@@ -2,6 +2,11 @@ package dev.kwlew.game.window;
 
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GL;
+import org.lwjgl.system.MemoryStack;
+
+import java.nio.IntBuffer;
+
+import static org.lwjgl.opengl.GL46.glViewport;
 
 public class Window {
 
@@ -30,10 +35,22 @@ public class Window {
         GLFW.glfwMakeContextCurrent(handle);
         GL.createCapabilities();
 
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+            IntBuffer widthBuffer = stack.mallocInt(1);
+            IntBuffer heightBuffer = stack.mallocInt(1);
+            GLFW.glfwGetFramebufferSize(handle, widthBuffer, heightBuffer);
+            width = widthBuffer.get(0);
+            height = heightBuffer.get(0);
+            glViewport(0, 0, width, height);
+        }
+
         GLFW.glfwSetFramebufferSizeCallback(handle, (win, w, h) -> {
             width = w;
             height = h;
             resized = true;
+            if (w > 0 && h > 0) {
+                glViewport(0, 0, w, h);
+            }
         });
     }
 
@@ -51,6 +68,10 @@ public class Window {
 
     public void swapBuffers() {
         GLFW.glfwSwapBuffers(handle);
+    }
+
+    public void setVsync(boolean enabled) {
+        GLFW.glfwSwapInterval(enabled ? 1 : 0);
     }
 
     public void cleanup() {
