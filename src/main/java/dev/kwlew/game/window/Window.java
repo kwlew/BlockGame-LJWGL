@@ -37,6 +37,10 @@ public class Window {
         });
     }
 
+    public void setTitle(String newTitle) {
+        GLFW.glfwSetWindowTitle(handle, newTitle);
+    }
+
     public boolean shouldClose() {
         return GLFW.glfwWindowShouldClose(handle);
     }

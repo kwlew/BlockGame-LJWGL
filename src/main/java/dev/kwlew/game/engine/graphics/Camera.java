@@ -24,6 +24,7 @@ public class Camera {
         this.near = near;
         this.far = far;
         setAspectRatio(aspect);
+        updateVectors();
     }
 
     public void setPosition(float x, float y, float z) {
@@ -62,6 +63,30 @@ public class Camera {
 
     public Matrix4f getViewMatrix() {
         return new Matrix4f().lookAt(position, new Vector3f(position).add(front), up);
+    }
+
+    public Vector3f getPosition(Vector3f destination) {
+        return destination.set(position);
+    }
+
+    public Vector3f getFront(Vector3f destination) {
+        return destination.set(front);
+    }
+
+    public Vector3f getForwardOnPlane(Vector3f destination) {
+        destination.set(front.x, 0.0f, front.z);
+        if (destination.lengthSquared() > 0.0f) {
+            destination.normalize();
+        }
+        return destination;
+    }
+
+    public Vector3f getRightOnPlane(Vector3f destination) {
+        destination.set(right.x, 0.0f, right.z);
+        if (destination.lengthSquared() > 0.0f) {
+            destination.normalize();
+        }
+        return destination;
     }
 
     private void updateVectors() {
