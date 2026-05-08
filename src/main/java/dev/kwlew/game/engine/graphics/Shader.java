@@ -1,11 +1,17 @@
 package dev.kwlew.game.engine.graphics;
 
+import org.joml.Matrix4f;
+import org.lwjgl.system.MemoryStack;
+
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.nio.FloatBuffer;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-import static org.lwjgl.opengl.GL21.*;
+
+
+import static org.lwjgl.opengl.GL46.*;
 
 public class Shader {
 
@@ -31,6 +37,26 @@ public class Shader {
 
         glDeleteShader(vertexId);
         glDeleteShader(fragmentId);
+    }
+
+    public void setMatrix4(String name, Matrix4f matrix) {
+
+        int location = glGetUniformLocation(programId, name);
+
+        try (MemoryStack stack = MemoryStack.stackPush()) {
+
+            FloatBuffer buffer = stack.mallocFloat(16);
+
+            matrix.get(buffer);
+
+            glUniformMatrix4fv(location, false, buffer);
+        }
+
+    }
+
+    public void setVec3(String name, float x, float y, float z) {
+        int location = glGetUniformLocation(programId, name);
+        glUniform3f(location, x, y, z);
     }
 
     private int createShader(String source, int type) {
